@@ -1,6 +1,11 @@
 {
-  "rewrites": [
-    { "source": "/api/posts", "destination": "/api/posts.js" },
-    { "source": "/(.*)", "destination": "/public/$1" }
-  ]
+  "version": 2,
+  "functions": {
+    "api/posts.js": {
+      "maxDuration": 30
+    }
+  },
+  "framework": null,
+  "buildCommand": "",
+  "outputDirectory": "public"
 }

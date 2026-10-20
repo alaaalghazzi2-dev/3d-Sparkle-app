@@ -1,27 +1,23 @@
 const axios = require('axios');
-const cheerio = require('cheerio');
+const { extractPosts } = require('../lib/extract-posts');
 
 module.exports = async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
   try {
-    const { data } = await axios.get('https://www.makeronline.com/', {
-      headers: { 'User-Agent': 'Mozilla/5.0' }
+    const { data } = await axios.get('https://www.makeronline.com/en/', {
+      timeout: 20000,
+      maxContentLength: 5 * 1024 * 1024,
+      headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'text/html', 'Accept-Language': 'en' }
     });
-    const $ = cheerio.load(data);
-    const posts = [];
-
-    $('article').each((i, el) => {
-      const titleEl = $(el).find('h2 a, h3 a, .entry-title a').first();
-      const title = titleEl.text().trim();
-      const link = titleEl.attr('href');
-      const imgEl = $(el).find('img').first();
-      let image = imgEl.attr('src') || imgEl.attr('data-src') || imgEl.attr('data-lazy-src') || '';
-      if (image.startsWith('/')) image = 'https://www.makeronline.com' + image;
-      if (title && image) posts.push({ title, image, link });
-    });
-
-    res.status(200).json(posts);
-  } catch (e) {
-    res.status(500).json({ error: 'Failed to fetch from makeronline.com' });
+    const posts = extractPosts(data);
+    if (!posts.length) {
+      console.error('MakerOnline returned no model cards');
+      return res.status(502).json({ error: 'لم نتمكن من استخراج المنشورات من المصدر. حاول مجددًا لاحقًا.' });
+    }
+    res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+    return res.status(200).json(posts);
+  } catch (error) {
+    console.error('MakerOnline fetch failed', error.code, error.response?.status);
+    return res.status(502).json({ error: 'تعذّر الاتصال بموقع MakerOnline. حاول مجددًا بعد قليل.' });
   }
 };
