@@ -1,23 +1,25 @@
 const axios = require('axios');
-const { extractPosts } = require('../lib/extract-posts');
-
-module.exports = async (req, res) => {
-  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-  try {
-    const { data } = await axios.get('https://www.makeronline.com/en/', {
-      timeout: 20000,
-      maxContentLength: 5 * 1024 * 1024,
-      headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'text/html', 'Accept-Language': 'en' }
-    });
-    const posts = extractPosts(data);
-    if (!posts.length) {
-      console.error('MakerOnline returned no model cards');
-      return res.status(502).json({ error: 'لم نتمكن من استخراج المنشورات من المصدر. حاول مجددًا لاحقًا.' });
-    }
-    res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
-    return res.status(200).json(posts);
-  } catch (error) {
-    console.error('MakerOnline fetch failed', error.code, error.response?.status);
-    return res.status(502).json({ error: 'تعذّر الاتصال بموقع MakerOnline. حاول مجددًا بعد قليل.' });
-  }
+const BASE = 'https://www.makeronline.com';
+module.exports = async (req,res) => {
+ res.setHeader('Cache-Control','no-store');
+ if(req.method!=='GET') return res.status(405).json({error:'Method not allowed'});
+ const q=String(req.query?.q||'').trim().slice(0,120);
+ const page=Math.min(500,Math.max(1,parseInt(req.query?.page,10)||1));
+ const exclude=String(req.query?.exclude||'').split(',').filter(x=>/^\d+$/.test(x)).slice(0,100);
+ const config={timeout:20000,headers:{'User-Agent':'Mozilla/5.0','Accept':'application/json'}};
+ try {
+  const response=q ? await axios.post(BASE+'/api/search/model',{keyword:q,page,page_size:20,category_id:'',print_type:0,pure_search:0},config) : await axios.get(BASE+'/api/index/random-featured',{...config,params:{seed:Date.now(),exclude_ids:exclude}});
+  const body=response.data;
+  if(body.code!==0) throw new Error('Upstream failure');
+  const rows=q?body.data?.data:body.data;
+  if(!Array.isArray(rows))throw new Error('Invalid upstream format');
+  const posts=rows.filter(x=>!x.is_adult_nsfw).map(x=>{
+   const id=String(x.mold_id||x.id||'');
+   const title=String(x.title||'');
+   const link=x.target_url||BASE+'/en/model/'+encodeURIComponent(title)+'/'+id+'.html';
+   return {id,title,image:x.mold_image||x.cover||x.image||'',link};
+  }).filter(x=>x.title&&/^https:\/\//.test(x.image)&&/^https:\/\/www\.makeronline\.com\//.test(x.link));
+  if(rows.length&&!posts.length)throw new Error('Model format changed');
+  return res.status(200).json({posts,page,hasMore:q?page<(body.data?.page?.last_page||page):false});
+ } catch(e){console.error('MakerOnline',e.code||e.message);return res.status(502).json({error:'تعذّر تحميل النماذج من المصدر. حاول مرة أخرى.'});}
 };

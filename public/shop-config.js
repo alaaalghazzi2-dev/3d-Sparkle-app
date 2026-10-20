@@ -1,0 +1,1 @@
+window.SHOP_WHATSAPP = '';
