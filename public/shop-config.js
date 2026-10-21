@@ -1,1 +1,1 @@
-window.SHOP_WHATSAPP = '';
+window.SHOP_WHATSAPP = '963998227776';
