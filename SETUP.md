@@ -13,3 +13,11 @@ Provider: Supabase Free (PostgreSQL + Auth). Never reuse another application's p
 7. Deploy only after configured database tests pass. The existing source links must be removed from public cards and WhatsApp order content; orders identify models by ID instead.
 
 Account data is privately stored in PostgreSQL. Guest orders remain WhatsApp only. Registered requests are saved before opening WhatsApp; the database does not claim WhatsApp delivery. Broadcast offers are shown only to opted-in profiles; service messages and automatic welcomes are separate. Customer list pages contain 50 entries; message/order lists show latest 100. Authentication and password reset are managed by Supabase, not our tables. Setup is incomplete until actual cloud migration/auth/permissions tests pass.
+
+## Cloud setup checkpoint (2026-10-21)
+
+- Supabase project: `sparkle3d` (`sliciikknpozvpzdodac`), region `eu-central-1`.
+- Customer accounts migration applied; RLS enabled on all four tables.
+- Intended administrator email confirmed by owner: provided privately by the owner. No account has been created or promoted yet. Verify email ownership before promotion.
+- Vercel connection currently returns 403 for team `3dsparkle`; list_teams returns no accessible teams. Team grant is required before environment setup/deployment.
+- Auth redirect URLs and email delivery still need configuration and end-to-end verification before publishing.
