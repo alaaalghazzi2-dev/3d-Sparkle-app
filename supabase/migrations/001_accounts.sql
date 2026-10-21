@@ -1,4 +1,7 @@
 begin;
+create schema if not exists private;
+revoke all on schema private from public;
+grant usage on schema private to authenticated;
 create table public.profiles (
  id uuid primary key references auth.users(id) on delete cascade,
  name text not null default '' check(length(name)<=100),
@@ -9,10 +12,13 @@ create table public.profiles (
 );
 create table public.admins (user_id uuid primary key references auth.users(id) on delete cascade);
 alter table public.admins enable row level security;
-create function public.is_admin() returns boolean language sql stable security definer set search_path='' as $$
+create function private.is_admin() returns boolean language sql stable security definer set search_path='' as $$
  select exists(select 1 from public.admins where user_id=auth.uid());
 $$;
-revoke all on function public.is_admin() from public;
+revoke all on function private.is_admin() from public,anon;
+grant execute on function private.is_admin() to authenticated;
+create function public.is_admin() returns boolean language sql stable security invoker set search_path='' as $$ select private.is_admin(); $$;
+revoke all on function public.is_admin() from public,anon;
 grant execute on function public.is_admin() to authenticated;
 create table public.messages (
  id uuid primary key default gen_random_uuid(),
@@ -58,7 +64,7 @@ create policy messages_delete on public.messages for delete to authenticated usi
 create policy orders_read on public.orders for select to authenticated using(user_id=auth.uid() or public.is_admin());
 create policy orders_insert on public.orders for insert to authenticated with check(user_id=auth.uid() and status='quote_requested');
 create policy orders_update on public.orders for update to authenticated using(public.is_admin()) with check(public.is_admin());
-create function public.on_signup() returns trigger language plpgsql security definer set search_path='' as $$
+create function private.on_signup() returns trigger language plpgsql security definer set search_path='' as $$
 begin
  insert into public.profiles(id,name,phone,address,marketing_opt_in)
  values(new.id,left(coalesce(new.raw_user_meta_data->>'name',''),100),left(coalesce(new.raw_user_meta_data->>'phone',''),30),left(coalesce(new.raw_user_meta_data->>'address',''),500),coalesce(new.raw_user_meta_data->>'marketing_opt_in','false')='true');
@@ -66,6 +72,6 @@ begin
  return new;
 end;
 $$;
-revoke all on function public.on_signup() from public,anon,authenticated;
-create trigger sparkle_signup after insert on auth.users for each row execute function public.on_signup();
+revoke all on function private.on_signup() from public,anon,authenticated;
+create trigger sparkle_signup after insert on auth.users for each row execute function private.on_signup();
 commit;
