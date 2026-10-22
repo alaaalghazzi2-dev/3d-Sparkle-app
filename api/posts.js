@@ -1,5 +1,6 @@
 const axios = require('axios');
 const {isAdmin}=require('../lib/access');
+const {translatePosts}=require('../lib/translate');
 const BASE = 'https://www.makeronline.com';
 module.exports = async (req,res) => {
  res.setHeader('Cache-Control','no-store');
@@ -21,8 +22,8 @@ module.exports = async (req,res) => {
    return {id,title,image:x.mold_image||x.cover||x.image||'',link};
   }).filter(x=>x.title&&/^https:\/\//.test(x.image)&&/^https:\/\/www\.makeronline\.com\//.test(x.link));
   if(rows.length&&!posts.length)throw new Error('Model format changed');
-  const admin=await isAdmin(req);
-  const visiblePosts=posts.map(({link,...post})=>admin?{...post,link}:post);
+  const [admin,translatedPosts]=await Promise.all([isAdmin(req),translatePosts(posts)]);
+  const visiblePosts=translatedPosts.map(({link,...post})=>admin?{...post,link}:post);
   return res.status(200).json({posts:visiblePosts,page,hasMore:q?page<(body.data?.page?.last_page||page):false});
  } catch(e){console.error('MakerOnline',e.code||e.message);return res.status(502).json({error:'تعذّر تحميل النماذج من المصدر. حاول مرة أخرى.'});}
 };
