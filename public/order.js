@@ -10,6 +10,7 @@ const status = document.getElementById('orderStatus');
 const button = document.getElementById('send');
 document.getElementById('product').textContent = title;
 form.noValidate = true;
+let previousRequest=null,guestRequest=null;
 const output = document.createElement('div');
 status.after(output);
 function digits(s) {
@@ -42,9 +43,16 @@ form.addEventListener('submit', async event => {
  if(db){
  const {data:sessionData}=await db.auth.getSession();
  if(sessionData.session){
+ const fingerprint=JSON.stringify([sessionData.session.user.id,modelSource,modelId,title,name,phone,address,quantity,String(data.get('notes')||'').trim()]);
+ if(previousRequest?.fingerprint===fingerprint){savedId=previousRequest.id;}else{
  const {data:record,error:saveError}=await db.from('orders').insert({user_id:sessionData.session.user.id,model_id:modelId,model_title:title,model_source:modelSource,model_path:modelPath,name,phone,address,quantity,notes:String(data.get('notes')||'').trim()}).select('id').single();
  if(saveError)return error('تعذّر حفظ الطلب في حسابك. لم يتم إرسال الطلب؛ حاول مجددًا.');
- savedId=record.id;
+ savedId=record.id;previousRequest={fingerprint,id:savedId};
+ }
+ }else{
+ const fingerprint=JSON.stringify([modelSource,modelId,title,name,phone,address,quantity,String(data.get('notes')||'').trim()]);
+ if(guestRequest?.fingerprint!==fingerprint)guestRequest={fingerprint,id:crypto.randomUUID()};
+ try{await db.rpc('record_guest_request',{p_request_id:guestRequest.id,p_source:modelSource,p_model_id:modelId,p_title:title,p_quantity:quantity}).abortSignal(AbortSignal.timeout(4000));}catch{}
  }
  }
  const recipient = '963998227776';
