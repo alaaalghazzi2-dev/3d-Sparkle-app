@@ -3,6 +3,8 @@ const params = new URLSearchParams(location.search);
 const title = params.get('title') || '';
 const legacy=(params.get('link')||'').match(/\/(\d+)\.html/);
 const modelId=params.get('id')||(legacy?legacy[1]:'');
+const modelSource=params.get('source')||'makeronline';
+const modelPath=modelSource==='cults'?(params.get('path')||''):'';
 const form = document.getElementById('orderForm');
 const status = document.getElementById('orderStatus');
 const button = document.getElementById('send');
@@ -22,7 +24,7 @@ form.addEventListener('submit', async event => {
  event.preventDefault();
  if(button.disabled)return;button.disabled=true;
  try {
- if (!title || !/^\d{1,15}$/.test(modelId)) return error('لم يتم تحديد نموذج صالح. ارجع للصفحة الرئيسية واختر شراء من بطاقة النموذج.');
+ if (!title || !(['makeronline','cults'].includes(modelSource)&&(modelSource==='makeronline'?/^\d{1,15}$/:/^[A-Za-z0-9_-]{1,100}$/).test(modelId))) return error('لم يتم تحديد نموذج صالح. ارجع للصفحة الرئيسية واختر شراء من بطاقة النموذج.');
  const data = new FormData(form);
  const name = String(data.get('name')||'').trim();
  const address = String(data.get('address')||'').trim();
@@ -34,13 +36,13 @@ form.addEventListener('submit', async event => {
  if(!name || !address) return error('يرجى إدخال الاسم والعنوان لإكمال الطلب.');
  if(!/^\+?[1-9]\d{7,14}$/.test(phone)) return error('أدخل رقم واتساب صحيحًا، مثل 0998227776 أو +963998227776. الأرقام العربية مقبولة.');
  if(!Number.isInteger(quantity)||quantity<1||quantity>1000) return error('أدخل كمية بين 1 و1000.');
- const text = ['طلب عرض سعر من Sparkle 3D','النموذج: '+title,'رقم النموذج: '+modelId,'الاسم: '+name,'العنوان: '+address,'واتساب المشتري: '+phone,'الكمية: '+quantity,'ملاحظات: '+String(data.get('notes')||'').trim(),'يرجى إرسال الكلفة ومدة التسليم.'].join('\n');
+ const text = ['طلب عرض سعر من Sparkle 3D','النموذج: '+title,'رقم النموذج: '+modelId,'المصدر: '+(modelSource==='cults'?'Cults':'MakerOnline'),'الاسم: '+name,'العنوان: '+address,'واتساب المشتري: '+phone,'الكمية: '+quantity,'ملاحظات: '+String(data.get('notes')||'').trim(),'يرجى إرسال الكلفة ومدة التسليم.'].join('\n');
  let savedId='';
  let db=null;try{db=await Sparkle.client();}catch{}
  if(db){
  const {data:sessionData}=await db.auth.getSession();
  if(sessionData.session){
- const {data:record,error:saveError}=await db.from('orders').insert({user_id:sessionData.session.user.id,model_id:modelId,model_title:title,name,phone,address,quantity,notes:String(data.get('notes')||'').trim()}).select('id').single();
+ const {data:record,error:saveError}=await db.from('orders').insert({user_id:sessionData.session.user.id,model_id:modelId,model_title:title,model_source:modelSource,model_path:modelPath,name,phone,address,quantity,notes:String(data.get('notes')||'').trim()}).select('id').single();
  if(saveError)return error('تعذّر حفظ الطلب في حسابك. لم يتم إرسال الطلب؛ حاول مجددًا.');
  savedId=record.id;
  }
