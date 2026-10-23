@@ -1,0 +1,13 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
+test('guest form compresses image, retries same request after upload failure, and only confirms saved image',async()=>{
+ const nodes={},node=()=>({hidden:false,disabled:false,value:'',textContent:'',files:[],scrollIntoView(){}});for(const id of ['customForm','referenceImage','imagePreview','imageStatus','submitCustom','customFields','customStatus','customSuccess','customWhatsapp','requestNumber'])nodes[id]=node();
+ const details={name:'Test person',phone:'+963999999999',address:'Damascus',description:'Custom lamp',color:'White',length_cm:'10',width_cm:'10',height_cm:'15',quantity:'2'};nodes.customForm.elements=Object.fromEntries(Object.keys(details).map(k=>[k,{value:''}]));nodes.customForm.reportValidity=()=>true;nodes.customSuccess.hidden=true;
+ let ids=0,uploaded=false,attempts=0;const starts=[];
+ const db={auth:{getSession:async()=>({data:{session:null}})},rpc:async(name,p)=>{if(name==='start_custom_request'){starts.push(p);return {data:'uploading'};}return uploaded?{data:null}:{error:{message:'Image required'}};},storage:{from:()=>({upload:async(path,blob,opts)=>{assert.equal(opts.upsert,false);assert.equal(blob.type,'image/jpeg');attempts++;if(attempts===1)return {error:{message:'Network error'}};uploaded=true;return {data:{path}};}})}};
+ class TestImage{naturalWidth=2400;naturalHeight=1600;set src(v){queueMicrotask(()=>this.onload());}}
+ const ctx={document:{getElementById:id=>nodes[id],createElement:()=>({getContext:()=>({fillRect(){},drawImage(){}}),toBlob:fn=>fn({size:100000,type:'image/jpeg'})})},Image:TestImage,URL:{createObjectURL:()=> 'blob:test',revokeObjectURL(){}},FormData:class{get(k){return details[k];}},crypto:{randomUUID:()=>String(++ids)},Sparkle:{client:async()=>db},window:{SHOP_WHATSAPP:'963998227776'},encodeURIComponent};
+ await vm.runInNewContext(fs.readFileSync('public/custom.js','utf8'),ctx);
+ nodes.referenceImage.files=[{type:'image/jpeg',size:1024}];await nodes.referenceImage.onchange();assert.equal(nodes.imagePreview.hidden,false);
+ await nodes.customForm.onsubmit({preventDefault(){}});assert.equal(nodes.customSuccess.hidden,true);assert.equal(nodes.submitCustom.disabled,false);
+ await nodes.customForm.onsubmit({preventDefault(){}});assert.equal(starts.length,2);assert.equal(starts[0].p_id,starts[1].p_id);assert.equal(ids,2);assert.equal(nodes.customSuccess.hidden,false);assert.equal(nodes.customForm.hidden,true);const url=new URL(nodes.customWhatsapp.href);assert.equal(url.pathname,'/963998227776');assert.match(url.searchParams.get('text'),/Custom lamp/);
+});

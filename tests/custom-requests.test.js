@@ -1,0 +1,19 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');const {PGlite}=require('@electric-sql/pglite');
+test('custom image requests: guests can submit once, cannot read; owners isolated; admins review',async()=>{
+ const db=new PGlite();await db.exec(`create role anon;create role authenticated;create schema auth;create table auth.users(id uuid primary key,raw_user_meta_data jsonb default '{}');create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema auth to authenticated,anon;grant execute on function auth.uid() to authenticated,anon;
+ create schema storage;create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);create table storage.objects(bucket_id text,name text,primary key(bucket_id,name));alter table storage.objects enable row level security;grant usage on schema storage to anon,authenticated;grant select,insert on storage.objects to anon,authenticated;`);
+ for(const f of ['001_accounts.sql','20261023044632_custom_print_requests.sql','20261023045040_fix_custom_image_read_policy.sql'])await db.exec(fs.readFileSync('supabase/migrations/'+f,'utf8'));
+ const user='00000000-0000-4000-8000-000000000001',other='00000000-0000-4000-8000-000000000002',admin='00000000-0000-4000-8000-000000000003',id='10000000-0000-4000-8000-000000000001',token='20000000-0000-4000-8000-000000000001',id2='10000000-0000-4000-8000-000000000002';
+ for(const u of [user,other,admin])await db.query('insert into auth.users(id) values($1)',[u]);await db.query('insert into public.admins values($1)',[admin]);
+ async function as(u){await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[u||'']);await db.exec('set role '+(u?'authenticated':'anon'));}
+ const details={name:'Test user',phone:'+963999999999',color:'White',description:'Test custom idea',length_cm:10,width_cm:8,height_cm:12,quantity:2};
+ async function start(i,t=token,d=details){return db.query('select start_custom_request($1,$2,$3)',[i,t,d]);}
+ async function finish(i,t=token){return db.query('select finish_custom_request($1,$2)',[i,t]);}
+ async function upload(i){return db.query("insert into storage.objects values('custom-requests',$1)",[i+'/'+token+'.jpg']);}
+ await as(null);await start(id);await start(id);await assert.rejects(finish(id),/Image required/);await assert.rejects(db.query('select * from custom_requests'));
+ await assert.rejects(db.query("insert into storage.objects values('custom-requests','unknown.jpg')"));await upload(id);await finish(id);await finish(id);assert.equal((await db.query('select * from storage.objects')).rows.length,0);await assert.rejects(finish(id,user),/Invalid request/);await assert.rejects(start(id2,token,{...details,quantity:-1}));
+ await as(user);await start(id2);await upload(id2);await finish(id2);assert.equal((await db.query('select * from custom_requests')).rows.length,1);assert.equal((await db.query('select * from storage.objects')).rows.length,1);await assert.rejects(start(id),/Invalid request/);assert.equal((await db.query("update custom_requests set status='completed' returning id")).rows.length,0);
+ await as(other);assert.equal((await db.query('select * from custom_requests')).rows.length,0);assert.equal((await db.query('select * from storage.objects')).rows.length,0);await assert.rejects(finish(id2),/Invalid request/);
+ await as(admin);assert.equal((await db.query('select * from custom_requests')).rows.length,2);assert.equal((await db.query('select * from storage.objects')).rows.length,2);await db.query("update custom_requests set status='contacted' where id=$1",[id]);assert.equal((await db.query('select status from custom_requests where id=$1',[id])).rows[0].status,'contacted');
+ await db.close();
+});
