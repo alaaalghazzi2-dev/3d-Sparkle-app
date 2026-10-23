@@ -1,4 +1,5 @@
 const axios = require('axios');
+const {cacheCatalogue}=require('../lib/catalogue-cache');
 const {isAdmin}=require('../lib/access');
 const {translatePosts}=require('../lib/translate');
 const {getCults}=require('../lib/cults');
@@ -21,6 +22,7 @@ module.exports=async(req,res)=>{
  const warnings=[],batches=[];let hasMore=false;
  results.forEach((r,i)=>{if(r.status==='fulfilled'){batches.push(r.value.posts);hasMore ||= r.value.hasMore;}else{warnings.push(sources[i]==='cults'?'تعذّر تحميل Cults مؤقتًا.':'تعذّر تحميل MakerOnline مؤقتًا.');console.error('Catalogue',sources[i],'unavailable');}});
  if(!batches.length)return res.status(502).json({error:warnings.join(' ')});
+ await cacheCatalogue(batches.flat());
  const posts=[];for(let i=0;i<Math.max(0,...batches.map(b=>b.length));i++)for(const b of batches)if(b[i]){const {link,...post}=b[i];posts.push(admin?{...post,link}:post);}
  return res.json({posts,page,hasMore,warnings});
 };
