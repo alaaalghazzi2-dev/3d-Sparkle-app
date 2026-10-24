@@ -8,6 +8,7 @@ function line(a,tag,text){const e=document.createElement(tag);e.textContent=text
 async function load(){const result=await db.auth.getUser();user=result.data.user;$('auth').hidden=!!user||recovering;$('member').hidden=!user||recovering;$('recovery').hidden=!recovering;if(!user||recovering)return;
  const p=check(await db.from('profiles').select('*').eq('id',user.id).single());for(const k of ['name','phone','address'])$('profile').elements[k].value=p[k];$('profile').elements.marketing_opt_in.checked=p.marketing_opt_in;
  const messages=check(await db.from('messages').select('*').order('created_at',{ascending:false}).limit(100));cards('messages',messages,(a,m)=>{line(a,'h3',m.title);line(a,'p',m.body);line(a,'small',new Date(m.created_at).toLocaleDateString('ar'));});
+ await loadLoyaltyCard(db);
  await loadCustomRequests(db,'myCustomRequests');
  const orders=check(await db.from('orders').select('*').order('created_at',{ascending:false}).limit(100));cards('orders',orders,(a,o)=>{line(a,'h3',o.model_title);line(a,'p','الكمية: '+o.quantity+' — '+({quote_requested:'بانتظار التسعير',contacted:'تم التواصل',confirmed:'مؤكد',completed:'مكتمل',cancelled:'ملغى'}[o.status]));});
 }
