@@ -13,3 +13,22 @@
 @media(max-width:850px){.feature-links{gap:8px}.feature-link{padding:12px;gap:8px}.feature-arrow{display:none}}
 @media(max-width:650px){.feature-links{grid-template-columns:1fr;margin-top:12px;gap:8px}.feature-link{min-height:66px;padding:10px 12px}.feature-icon{width:38px;height:38px;font-size:22px}.feature-copy{gap:1px}.feature-arrow{display:block}}
 @media(prefers-reduced-motion:reduce){.feature-link,.feature-arrow{transition:none}.feature-link:hover,.feature-link:active,.feature-link:hover .feature-arrow{transform:none}}
+
+/* Shared compact feature buttons, including navigation added after sign-in. */
+body nav:not(.feature-links){display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+body nav:not(.feature-links) a,.message a[href]:not(.buy){--accent:#0757a7;--tint:#e6f1ff;display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:46px;max-width:100%;padding:10px 14px;border:1px solid #d6e5f5;border-radius:14px;background:linear-gradient(115deg,#fff,var(--tint));color:var(--accent);font-size:14px;font-weight:600;line-height:1.5;text-decoration:none;box-shadow:0 3px 10px #17324d08;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;overflow-wrap:anywhere}
+body nav:not(.feature-links) a::before{content:'↗';display:grid;place-items:center;flex-shrink:0;width:28px;height:28px;border-radius:9px;background:#ffffffdb;font-size:19px}
+body nav:not(.feature-links) a[href='/']::before{content:'⌂'}
+body nav:not(.feature-links) a[href='/popular.html']::before{content:'★'}
+body nav:not(.feature-links) a[href^='/account.html']::before{content:'♙'}
+body nav:not(.feature-links) a[href='/custom.html']{--accent:#6543a6;--tint:#f0eaff;border-color:#e0d5f2}
+body nav:not(.feature-links) a[href='/custom.html']::before{content:'✦'}
+body nav:not(.feature-links) a[href='/admin.html'],body nav:not(.feature-links) a[href$='#loyaltyCard']{--accent:#8a5a08;--tint:#fff4d7;border-color:#eadfbd}
+body nav:not(.feature-links) a[href='/admin.html']::before{content:'⚙'}
+body nav:not(.feature-links) a[href$='#loyaltyCard']::before{content:'🎁'}
+.message a[href]:not(.buy){margin-block:10px}
+body nav:not(.feature-links) a:focus-visible,.message a[href]:not(.buy):focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+@media(hover:hover){body nav:not(.feature-links) a:hover,.message a[href]:not(.buy):hover{transform:translateY(-3px);box-shadow:0 8px 20px #17324d12;border-color:var(--accent)}}
+body nav:not(.feature-links) a:active,.message a[href]:not(.buy):active{transform:scale(.98)}
+@media(max-width:700px){body nav:not(.feature-links){gap:8px}body .header-top nav{flex:1;justify-content:flex-end}body nav:not(.feature-links) a{padding:8px 10px;font-size:13px;min-height:44px}body .compact-brand-header nav{margin:8px 0 0}}
+@media(prefers-reduced-motion:reduce){body nav:not(.feature-links) a,.message a[href]:not(.buy){transition:none}body nav:not(.feature-links) a:hover,body nav:not(.feature-links) a:active,.message a[href]:not(.buy):hover,.message a[href]:not(.buy):active{transform:none}}
