@@ -23,7 +23,7 @@ async function loadPosts(append=false,discover=false){
    const attribution=document.createElement('p');attribution.style.cssText='padding:0 14px;font-size:13px';attribution.textContent=post.source==='cults'?'Cults · '+post.creator+' · '+post.license:'MakerOnline';
    if(post.licenseUrl){const license=document.createElement('a');license.href=post.licenseUrl;license.target='_blank';license.rel='noopener noreferrer';license.textContent=' شروط الترخيص';attribution.append(license);}
    const buy=document.createElement('a');buy.className='buy';buy.textContent='شراء / طلب عرض سعر';
-   buy.href='/order.html?'+new URLSearchParams({title:post.title,id:post.id,source:post.source||'makeronline',path:post.modelPath||''});card.append(a,attribution,buy);grid.append(card);if(post.source==='makeronline')seen.push(post.id);
+   buy.href='/order.html?'+new URLSearchParams({title:post.title,id:post.id,source:post.source||'makeronline',path:post.modelPath||'',image:post.image||''});card.append(a,attribution,buy);grid.append(card);if(post.source==='makeronline')seen.push(post.id);
   }
   more.hidden=!data.hasMore;errorEl.textContent=(data.warnings||[]).join(' ');
   statusEl.textContent=data.posts.length?(query?'نتائج البحث عن: '+query:'مجموعة نماذج مقترحة — اضغط «نماذج أخرى» لتغييرها'):'لا توجد نتائج. جرّب كلمة أخرى أو الاسم بالإنكليزية.';
