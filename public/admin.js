@@ -9,6 +9,14 @@ async function loadMessages(){$('sent').replaceChildren();const rows=check(await
 async function loadOrders(){$('adminOrders').replaceChildren();const rows=check(await db.from('orders').select('*').order('created_at',{ascending:false}).limit(100));for(const o of rows){const a=document.createElement('article');a.className='message';text(a,'h3',o.model_title);text(a,'p',[o.name,o.phone,o.address,'الكمية: '+o.quantity,o.notes].join(' — '));const cults=o.model_source==='cults';const link=text(a,'a',cults?'فتح النموذج في Cults':'فتح النموذج في MakerOnline');if(cults){try{const u=new URL(o.model_path,'https://cults3d.com');if(u.origin==='https://cults3d.com'&&u.pathname.startsWith('/en/3d-model/'))link.href=u.href;}catch{}}else link.href='https://www.makeronline.com/en/model/'+encodeURIComponent(o.model_title)+'/'+o.model_id+'.html';link.target='_blank';link.rel='noopener noreferrer';addOrderEditor(db,a,'orders',o);$('adminOrders').append(a);}}
 try{db=await Sparkle.client();const {data,error}=await db.auth.getUser();if(error||!data.user){say('سجل الدخول بحساب المسؤول أولًا من صفحة حسابي.');return;}if(check(await db.rpc('is_admin'))!==true){say('هذه الصفحة مخصصة للمسؤول فقط.');return;}}catch(e){say(e.message||'تعذّر فتح لوحة المسؤول.');return;}
 $('panel').hidden=false;
+let onlineBusy=false;
+async function loadOnline(){if(onlineBusy||document.visibilityState==='hidden')return;onlineBusy=true;$('refreshOnline').disabled=true;
+ try{const data=check(await db.rpc('online_summary').abortSignal(AbortSignal.timeout(10000)));$('onlineStats').replaceChildren();
+ for(const [label,value] of [['الإجمالي الآن',data.total],['عملاء مسجّلون',data.registered],['زوار دون تسجيل',data.guests]]){const c=text($('onlineStats'),'div','');text(c,'strong',Number(value).toLocaleString('ar'));text(c,'small',label);}
+ $('onlineStatus').textContent='آخر تحديث: '+new Date().toLocaleTimeString('ar',{timeZone:'Asia/Damascus'});
+ }catch{$('onlineStatus').textContent='تعذّر تحديث المتواجدين؛ الأرقام السابقة قديمة. حاول مجددًا.';}finally{onlineBusy=false;$('refreshOnline').disabled=false;}}
+$('refreshOnline').onclick=loadOnline;loadOnline();setInterval(loadOnline,30000);document.addEventListener('visibilitychange',loadOnline);
+
 document.addEventListener('loyalty-updated',()=>action(loadCustomers));
 $('refreshCustomers').onclick=()=>action(loadCustomers);
 $('refreshCustom').onclick=()=>loadCustomRequests(db,'adminCustomRequests',true);

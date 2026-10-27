@@ -18,3 +18,14 @@ async function trackVisits(){
  }catch{}
 }
 trackVisits();
+
+// Visible pages send a heartbeat; server derives login identity from the token.
+(async()=>{
+ try{
+ const db=await client();let visitor;
+ try{visitor=localStorage.getItem('sparkle_visitor_id');if(!/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(visitor||'')){visitor=crypto.randomUUID();localStorage.setItem('sparkle_visitor_id',visitor);}}catch{visitor=crypto.randomUUID();}
+ let busy=false;
+ async function beat(){if(document.visibilityState!=='visible'||busy)return;busy=true;try{await db.rpc('heartbeat',{p_visitor_id:visitor}).abortSignal(AbortSignal.timeout(10000));}catch{}finally{busy=false;}}
+ beat();setInterval(beat,60000);document.addEventListener('visibilitychange',beat);db.auth.onAuthStateChange(()=>setTimeout(beat,0));
+ }catch{}
+})();
