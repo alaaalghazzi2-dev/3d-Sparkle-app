@@ -12,6 +12,9 @@ if(imageUrl){
  const img=document.createElement('img');img.src=imageUrl;img.alt=title;img.referrerPolicy='no-referrer';img.style.cssText='display:block;max-width:100%;max-height:240px;object-fit:contain;margin:12px auto;border-radius:12px';img.onerror=()=>img.remove();document.getElementById('product').after(img);
  fetch(imageUrl,{referrerPolicy:'no-referrer',credentials:'omit',signal:AbortSignal.timeout(10000)}).then(r=>{if(!r.ok)throw Error();return r.blob();}).then(b=>{if(/^image\/(jpeg|png|webp)$/.test(b.type)&&b.size<=10*1024*1024)imageFile=new File([b],'sparkle-order.'+({ 'image/jpeg':'jpg','image/png':'png','image/webp':'webp'}[b.type]),{type:b.type});}).catch(()=>{});
 }
+const campaignSlug=params.get('campaign')||'';
+if(campaignSlug){const note=document.createElement('p');note.textContent='طلب من حملة موسمية — سيُتحقق من الخصم عند متابعة الطلب.';document.getElementById('product').after(note);fetch('/api/campaigns?slug='+encodeURIComponent(campaignSlug),{cache:'no-store'}).then(r=>r.json()).then(d=>{note.textContent=d.campaign?.state==='active'?d.campaign.title+' — خصم '+d.campaign.discount+'% مع استمرار بطاقة الولاء وفق شروطها.':'العرض غير نشط حاليًا.';}).catch(()=>{});}
+
 const form = document.getElementById('orderForm');
 const status = document.getElementById('orderStatus');
 const button = document.getElementById('send');
@@ -44,20 +47,22 @@ form.addEventListener('submit', async event => {
  if(!name || !address) return error('يرجى إدخال الاسم والعنوان لإكمال الطلب.');
  if(!/^\+?[1-9]\d{7,14}$/.test(phone)) return error('أدخل رقم واتساب صحيحًا، مثل 0998227776 أو +963998227776. الأرقام العربية مقبولة.');
  if(!Number.isInteger(quantity)||quantity<1||quantity>1000) return error('أدخل كمية بين 1 و1000.');
- const text = ['طلب عرض سعر من Sparkle 3D','النموذج: '+title,...(imageUrl?['صورة النموذج: '+imageUrl]:[]),'رقم النموذج: '+modelId,'المصدر: '+(modelSource==='cults'?'Cults':'MakerOnline'),'الاسم: '+name,'العنوان: '+address,'واتساب المشتري: '+phone,'الكمية: '+quantity,'ملاحظات: '+String(data.get('notes')||'').trim(),'يرجى إرسال الكلفة ومدة التسليم.'].join('\n');
+ let campaign=null;
+ if(campaignSlug){const r=await fetch('/api/campaigns?slug='+encodeURIComponent(campaignSlug),{cache:'no-store',signal:AbortSignal.timeout(12000)});const d=await r.json();if(!r.ok)throw Error();if(!d.campaign||d.campaign.state!=='active'||!d.posts.some(p=>p.id===modelId&&p.source===modelSource))return error('العرض غير متاح حاليًا لهذا المنتج. ارجع إلى المتجر لاختيار طلب جديد.');campaign=d.campaign;}
+ const text = ['طلب عرض سعر من Sparkle 3D','النموذج: '+title,...(campaign?['الحملة: '+campaign.title,'خصم الحملة: '+campaign.discount+'% — بطاقة الولاء مستمرة وفق شروطها']:[]),...(imageUrl?['صورة النموذج: '+imageUrl]:[]),'رقم النموذج: '+modelId,'المصدر: '+(modelSource==='cults'?'Cults':'MakerOnline'),'الاسم: '+name,'العنوان: '+address,'واتساب المشتري: '+phone,'الكمية: '+quantity,'ملاحظات: '+String(data.get('notes')||'').trim(),'يرجى إرسال الكلفة ومدة التسليم.'].join('\n');
  let savedId='';
  let db=null;try{db=await Sparkle.client();}catch{}
  if(db){
  const {data:sessionData}=await db.auth.getSession();
  if(sessionData.session){
- const fingerprint=JSON.stringify([sessionData.session.user.id,modelSource,modelId,title,name,phone,address,quantity,String(data.get('notes')||'').trim()]);
+ const fingerprint=JSON.stringify([campaign?.id,campaign?.discount,sessionData.session.user.id,modelSource,modelId,title,name,phone,address,quantity,String(data.get('notes')||'').trim()]);
  if(previousRequest?.fingerprint===fingerprint){savedId=previousRequest.id;}else{
- const {data:record,error:saveError}=await db.from('orders').insert({user_id:sessionData.session.user.id,model_id:modelId,model_title:title,model_source:modelSource,model_path:modelPath,name,phone,address,quantity,notes:String(data.get('notes')||'').trim()}).select('id').single();
+ const {data:record,error:saveError}=await db.from('orders').insert({...(campaign?{campaign_id:campaign.id}:{}),user_id:sessionData.session.user.id,model_id:modelId,model_title:title,model_source:modelSource,model_path:modelPath,name,phone,address,quantity,notes:String(data.get('notes')||'').trim()}).select('id').single();
  if(saveError)return error('تعذّر حفظ الطلب في حسابك. لم يتم إرسال الطلب؛ حاول مجددًا.');
  savedId=record.id;previousRequest={fingerprint,id:savedId};
  }
  }else{
- const fingerprint=JSON.stringify([modelSource,modelId,title,name,phone,address,quantity,String(data.get('notes')||'').trim()]);
+ const fingerprint=JSON.stringify([campaign?.id,campaign?.discount,modelSource,modelId,title,name,phone,address,quantity,String(data.get('notes')||'').trim()]);
  if(guestRequest?.fingerprint!==fingerprint)guestRequest={fingerprint,id:crypto.randomUUID()};
  try{await db.rpc('record_guest_request',{p_request_id:guestRequest.id,p_source:modelSource,p_model_id:modelId,p_title:title,p_quantity:quantity}).abortSignal(AbortSignal.timeout(4000));}catch{}
  }

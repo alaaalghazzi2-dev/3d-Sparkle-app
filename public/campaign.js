@@ -1,0 +1,12 @@
+window.CampaignUI={
+ el(tag,text,parent){const e=document.createElement(tag);if(text)e.textContent=text;if(parent)parent.append(e);return e;},
+ render(c,posts,box){const E=this.el;box.replaceChildren();const hero=E('section','',box);hero.className='campaign-hero';const b=E('span',c.state==='active'?'خصم '+c.discount+'%':c.state==='scheduled'?'قريبًا — خصم '+c.discount+'%':c.state==='paused'?'الحملة متوقفة مؤقتًا':'انتهت الحملة',hero);b.className='badge';E('h1',c.title,hero);E('p',c.description,hero);E('p',c.starts_on+' — '+c.ends_on+' · بتوقيت دمشق',hero);E('p','بطاقة الولاء مستمرة وفق شروطها؛ يُحتسب سعر القطعة النهائي بعد الخصم.',hero);
+if(c.poster){const img=E('img','',hero);img.src=c.poster;img.alt=c.title;img.className='campaign-poster';}
+const a=E('a','رابط صفحة الحملة ↗',hero);a.href='/campaign.html?slug='+encodeURIComponent(c.slug);a.className='buy';
+const grid=E('div','',box);grid.className='grid campaign-grid';
+for(const p of posts){const card=E('article','',grid);card.className='card';const img=E('img','',card);img.src=p.image;img.alt=p.title;img.loading='lazy';img.referrerPolicy='no-referrer';E('h3',p.title,card);E('small',[p.source,p.creator,p.license].filter(Boolean).join(' · '),card);if(p.licenseUrl&&/^https:\/\//.test(p.licenseUrl)){const l=E('a','شروط الترخيص',card);l.href=p.licenseUrl;l.target='_blank';l.rel='noopener noreferrer';}
+if(c.state==='active'){const buy=E('a','اطلب مع خصم '+c.discount+'%',card);buy.className='buy';buy.href='/order.html?'+new URLSearchParams({title:p.title,id:p.id,source:p.source,path:p.modelPath||'',image:p.image||'',campaign:c.slug});}}
+if(!posts.length)E('p','سيتم عرض النماذج بعد اعتمادها من المسؤول.',box);},
+async get(slug=''){const r=await fetch('/api/campaigns'+(slug?'?slug='+encodeURIComponent(slug):''),{cache:'no-store',signal:AbortSignal.timeout(12000)});const d=await r.json();if(!r.ok)throw Error(d.error);return d;}
+};
+(async()=>{if(!document.getElementById('campaignPage'))return;const box=document.getElementById('campaignPage');try{const slug=new URLSearchParams(location.search).get('slug')||'';const d=await CampaignUI.get(slug);if(d.campaign)CampaignUI.render(d.campaign,d.posts,box);else box.textContent=slug?'الحملة غير منشورة أو غير موجودة.':'لا توجد حملة نشطة حاليًا.';const archive=document.getElementById('campaignArchive');for(const c of d.archive){const a=CampaignUI.el('a',c.title+' · '+c.starts_on,archive);a.href='/campaign.html?slug='+encodeURIComponent(c.slug);}}catch(e){box.textContent=e.message;}})();

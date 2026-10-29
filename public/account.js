@@ -10,7 +10,7 @@ async function load(){const result=await db.auth.getUser();user=result.data.user
  const messages=check(await db.from('messages').select('*').order('created_at',{ascending:false}).limit(100));cards('messages',messages,(a,m)=>{line(a,'h3',m.title);line(a,'p',m.body);line(a,'small',new Date(m.created_at).toLocaleDateString('ar'));});
  await loadLoyaltyCard(db);
  await loadCustomRequests(db,'myCustomRequests');
- const orders=check(await db.from('orders').select('*').order('created_at',{ascending:false}).limit(100));cards('orders',orders,(a,o)=>{line(a,'h3',o.model_title);line(a,'p','الكمية: '+o.quantity+' — '+({quote_requested:'بانتظار التسعير',contacted:'تم التواصل',confirmed:'مؤكد',completed:'مكتمل',cancelled:'ملغى'}[o.status]));});
+ const orders=check(await db.from('orders').select('*').order('created_at',{ascending:false}).limit(100));cards('orders',orders,(a,o)=>{line(a,'h3',o.model_title);if(o.campaign_title)line(a,'p','الحملة: '+o.campaign_title+' — خصم '+o.campaign_discount+'%');line(a,'p','الكمية: '+o.quantity+' — '+({quote_requested:'بانتظار التسعير',contacted:'تم التواصل',confirmed:'مؤكد',completed:'مكتمل',cancelled:'ملغى'}[o.status]));});
 }
 try{db=await Sparkle.client();}catch(e){say(e.message);$('auth').hidden=true;return;}
 db.auth.onAuthStateChange(event=>{if(event==='PASSWORD_RECOVERY'){recovering=true;$('recovery').hidden=false;$('auth').hidden=true;$('member').hidden=true;}});

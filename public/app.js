@@ -32,6 +32,7 @@ async function loadPosts(append=false,discover=false){
 }
 document.getElementById('searchForm').onsubmit=e=>{e.preventDefault();if(busy)return;query=document.getElementById('search').value.trim();page=1;loadPosts();};
 refreshBtn.onclick=()=>{if(busy)return;query='';page=++discoveryPage;document.getElementById('search').value='';loadPosts(false,true);};
-more.onclick=()=>{if(!busy){page++;loadPosts(true);}};loadPosts();
+more.onclick=()=>{if(!busy){page++;loadPosts(true);}};
+(async()=>{const browse=document.getElementById("generalBrowse");try{const d=await CampaignUI.get();if(d.campaign){const box=document.getElementById("homeCampaign");box.hidden=false;CampaignUI.render(d.campaign,d.posts,box);browse.open=false;browse.querySelector("summary").after(document.getElementById("searchForm"));let loaded=false;browse.addEventListener("toggle",()=>{if(browse.open&&!loaded){loaded=true;loadPosts();}});return;}}catch{}loadPosts();})();
 
 sourceEl.onchange=()=>{if(busy)return;page=1;discoveryPage=1;loadPosts();};
