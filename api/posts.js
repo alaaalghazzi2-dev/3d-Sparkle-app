@@ -11,7 +11,7 @@ async function getMaker({q,page,exclude}){
  const body=response.data;if(body.code!==0)throw Error('MakerOnline failure');
  const rows=q?body.data?.data:body.data;if(!Array.isArray(rows))throw Error('Invalid models');
  const posts=rows.filter(allowedModel).map(x=>{const id=String(x.mold_id||x.id||''),title=String(x.title||'');return {id,title,source:'makeronline',image:x.mold_image||x.cover||x.image||'',link:x.target_url||BASE+'/en/model/'+encodeURIComponent(title)+'/'+id+'.html'};}).filter(x=>/^\d{1,15}$/.test(x.id)&&x.title&&/^https:\/\//.test(x.image)&&/^https:\/\/www\.makeronline\.com\//.test(x.link));
- return {posts:await translatePosts(posts),hasMore:q?page<(body.data?.page?.last_page||page):false};
+ return {posts,hasMore:q?page<(body.data?.page?.last_page||page):false};
 }
 module.exports=async(req,res)=>{
  res.setHeader('Cache-Control','no-store');if(req.method!=='GET')return res.status(405).json({error:'Method not allowed'});
@@ -23,7 +23,8 @@ module.exports=async(req,res)=>{
  const warnings=[],batches=[];let hasMore=false;
  results.forEach((r,i)=>{if(r.status==='fulfilled'){batches.push(r.value.posts.filter(allowedModel));hasMore ||= r.value.hasMore;}else{warnings.push(sources[i]==='cults'?'تعذّر تحميل Cults مؤقتًا.':'تعذّر تحميل MakerOnline مؤقتًا.');console.error('Catalogue',sources[i],'unavailable');}});
  if(!batches.length)return res.status(502).json({error:warnings.join(' ')});
+ const translatedBatches=await Promise.all(batches.map(b=>translatePosts(b)));
  await cacheCatalogue(batches.flat());
- const posts=[];for(let i=0;i<Math.max(0,...batches.map(b=>b.length));i++)for(const b of batches)if(b[i]){const {link,...post}=b[i];posts.push(admin?{...post,link}:post);}
+ const posts=[];for(let i=0;i<Math.max(0,...translatedBatches.map(b=>b.length));i++)for(const b of translatedBatches)if(b[i]){const {link,...post}=b[i];posts.push(admin?{...post,link}:post);}
  return res.json({posts,page,hasMore,warnings});
 };
